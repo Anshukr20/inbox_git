@@ -1,0 +1,143 @@
+#include <LiquidCrystal_I2C.h>
+
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(9,10);
+
+int buttonpin=5;
+int buzzer=6;
+
+int read_ADC;
+int ntu;
+
+int flag=0;
+
+int TRIGGER_PIN=11;
+int ECHO_PIN=12; 
+int BUZZER_PIN=7; 
+
+LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
+
+void setup() {
+
+   pinMode(A0, INPUT);
+
+  pinMode(buttonpin,INPUT);
+  pinMode(buzzer,OUTPUT);
+
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+
+  mySerial.begin(9600);   // Setting the baud rate of GSM Module  
+  Serial.begin(9600);// Setting the baud rate of Serial Monitor (Arduino)
+  Serial.println("SOS");
+
+  lcd.init();
+  lcd.clear();         
+  lcd.backlight();      // Make sure backlight is on
+  
+  // Print a message on both lines of the LCD.
+  lcd.setCursor(0,0);
+    lcd.print("Water Level");
+  
+  
+
+}
+
+void loop() {
+
+  read_ADC = analogRead(A1);
+  if(read_ADC>208)read_ADC=208;
+
+  ntu = map(read_ADC, 0, 200, 300 ,0);
+  
+  lcd.setCursor(0,1);
+  
+  if(ntu<10){
+     lcd.print("Very Clean");
+     Serial.println("Very Clean");
+  }
+  if(ntu>=10 && ntu<30)
+  {
+    lcd.print("Norm Clean");
+    Serial.println("Norm Clean");
+  } 
+  if(ntu>=30)
+  {
+    lcd.print("Very Dirty");
+     Serial.println("Very Dirty");
+  } 
+
+
+long duration, distance;
+  
+  digitalWrite(TRIGGER_PIN, LOW); 
+  delayMicroseconds(2); 
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10); 
+  digitalWrite(TRIGGER_PIN, LOW);
+  
+  duration = pulseIn(ECHO_PIN, HIGH);
+  
+  distance = duration * 0.034 / 2;
+  //Serial.print("Distance: ");
+  //Serial.println(distance);
+
+   if (distance >=8 && flag==0) {
+    flag=1;
+    lcd.setCursor(0,0);   //Set cursor to character 2 on line 0
+   lcd.clear(); 
+   lcd.setCursor(0,0);
+    lcd.print("Level : Low");
+    Serial.println("Level : Low");
+    digitalWrite(buzzer, HIGH);
+    delay(300);
+    SendMessage();
+    digitalWrite(buzzer, LOW);
+  } 
+  else if(distance<=2 && flag==1) {
+    Serial.println("Water Level is Full : ");
+    lcd.setCursor(0,0); 
+    lcd.clear(); 
+    lcd.setCursor(0,0);   //Set cursor to character 2 on line 0
+    lcd.print("Level : HIGH");
+    flag=0;
+    digitalWrite(buzzer, HIGH);
+    delay(300);
+    SendMsg();
+    digitalWrite(buzzer, LOW);
+  }
+
+ if (mySerial.available()>0)
+ Serial.write(mySerial.read());
+
+ 
+}
+
+void SendMessage()
+{
+  mySerial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+
+  mySerial.println("AT+CMGS=\"+917903539817\"\r"); // Replace x with mobile number
+  delay(1000); 
+
+  mySerial.println("Water Level is Low");// The SMS text you want to send
+  delay(100);
+   mySerial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+}
+
+void SendMsg()
+{
+  mySerial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+
+  mySerial.println("AT+CMGS=\"+917903539817\"\r"); // Replace x with mobile number
+  delay(1000); 
+
+  mySerial.println("Water Level is Full");// The SMS text you want to send
+  delay(100);
+   mySerial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+
+}
